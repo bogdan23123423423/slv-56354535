@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>SecureLineVPN</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#000000;
+    --surface:#0c0c0f;
+    --surface-hover:#131318;
+    --surface-strong:#17171c;
+    --border:rgba(255,255,255,.08);
+    --border-strong:rgba(255,255,255,.16);
+    --text:#f5f6f8;
+    --text-muted:#8b8d94;
+    --text-faint:#55565c;
+    --accent:#4fd1ff;
+    --accent-2:#7c8bff;
+    --accent-glow:rgba(79,209,255,.35);
+    --radius-sm:10px;
+    --radius-md:16px;
+    --radius-lg:24px;
+    --ease:cubic-bezier(.65,0,.35,1);
+    --font-display:'Space Grotesk',sans-serif;
+    --font-mono:'JetBrains Mono',monospace;
+  }
+
+  *{box-sizing:border-box;}
+  html,body{height:100%;}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--text);
+    font-family:var(--font-display);
+    -webkit-font-smoothing:antialiased;
+    overflow-x:hidden;
+  }
+  ::selection{background:var(--accent-glow);color:#fff;}
+  a{color:inherit;text-decoration:none;}
+  button{font-family:inherit;cursor:pointer;}
+
+  .visually-hidden{
+    position:absolute;width:1px;height:1px;padding:0;margin:-1px;
+    overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;
+  }
+
+  /* ---------- ambient background ---------- */
+  .ambient{
+    position:fixed;inset:0;pointer-events:none;z-index:0;
+    background:
+      radial-gradient(60% 40% at 20% 0%, rgba(79,209,255,.05), transparent 60%),
+      radial-gradient(50% 35% at 100% 100%, rgba(124,139,255,.045), transparent 60%);
+  }
+
+  /* ---------- wordmark (shared) ---------- */
+  .wordmark{display:inline-flex;align-items:center;gap:8px;}
+  .wordmark__text{
+    font-weight:600;letter-spacing:.01em;
+  }
+  .wordmark__badge{
+    font-family:var(--font-mono);
+    font-size:.62em;
+    font-weight:500;
+    letter-spacing:.12em;
+    color:var(--accent);
+    border:1px solid rgba(79,209,255,.35);
+    border-radius:6px;
+    padding:.28em .45em;
+    line-height:1;
+    background:rgba(79,209,255,.06);
+  }
+
+  /* ---------- splash ---------- */
+  #splash{
+    position:fixed;inset:0;z-index:50;
+    background:var(--bg);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    gap:40px;
+    transition:opacity .5s var(--ease);
+  }
+  #splash.fade-out{opacity:0;}
+  .splash-word{font-size:clamp(28px,7vw,40px);}
+  .progress-track{
+    width:min(220px,55vw);height:2px;border-radius:2px;
+    background:rgba(255,255,255,.08);
+    position:relative;overflow:visible;
+  }
+  .progress-fill{
+    position:absolute;inset:0 100% 0 0;
+    width:0%;border-radius:2px;
+    background:linear-gradient(90deg,var(--accent),var(--accent-2));
+    box-shadow:0 0 10px 1px var(--accent-glow);
+    transition:width 2.1s var(--ease);
+  }
+  .progress-fill.run{width:100%;}
+  .progress-fill::after{
+    content:'';position:absolute;top:50%;right:0;
+    width:6px;height:6px;border-radius:50%;
+    background:#fff;
+    box-shadow:0 0 8px 2px var(--accent-glow),0 0 16px 4px rgba(124,139,255,.25);
+    transform:translate(50%,-50%);
+  }
+
+  /* ---------- app shell ---------- */
+  #app{
+    position:relative;z-index:1;
+    max-width:480px;margin:0 auto;
+    min-height:100vh;
+    padding:28px 22px 48px;
+    opacity:0;transform:translateY(6px);
+    transition:opacity .6s var(--ease),transform .6s var(--ease);
+  }
+  #app.visible{opacity:1;transform:translateY(0);}
+
+  header.top{
+    display:flex;align-items:center;justify-content:space-between;
+    margin-bottom:18px;
+  }
+  .status-dot-wrap{display:flex;align-items:center;gap:8px;}
+  .status-dot{
+    position:relative;width:8px;height:8px;border-radius:50%;
+    background:var(--accent);
+    box-shadow:0 0 6px 1px var(--accent-glow);
+  }
+  .status-dot::after{
+    content:'';position:absolute;inset:-6px;border-radius:50%;
+    border:1px solid var(--accent);
+    opacity:.5;
+    animation:ping 2.4s var(--ease) infinite;
+  }
+  @keyframes ping{
+    0%{transform:scale(.6);opacity:.6;}
+    100%{transform:scale(2.1);opacity:0;}
+  }
+  .status-label{
+    font-family:var(--font-mono);font-size:11px;letter-spacing:.1em;
+    color:var(--text-muted);text-transform:uppercase;
+  }
+
+  .hairline{
+    height:1px;width:100%;
+    background:linear-gradient(90deg, var(--border) 0%, var(--border-strong) 30%, var(--border) 60%, transparent 100%);
+    margin:22px 0 30px;
+  }
+
+  .eyebrow{
+    font-family:var(--font-mono);font-size:11px;letter-spacing:.14em;
+    text-transform:uppercase;color:var(--text-muted);
+    margin:0 0 14px;
+  }
+
+  section{margin-bottom:34px;}
+
+  /* ---------- social buttons ---------- */
+  .social-row{display:flex;gap:10px;}
+  .social-btn{
+    flex:1;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    gap:8px;padding:16px 8px;
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:var(--radius-md);
+    transition:border-color .25s var(--ease), box-shadow .25s var(--ease), transform .25s var(--ease), background .25s var(--ease);
+  }
+  .social-btn svg{width:20px;height:20px;color:var(--text);transition:color .25s var(--ease);}
+  .social-btn__label{
+    font-family:var(--font-mono);font-size:11px;letter-spacing:.08em;color:var(--text-muted);
+    transition:color .25s var(--ease);
+  }
+  .social-btn:hover,.social-btn:focus-visible{
+    background:var(--surface-hover);
+    border-color:rgba(79,209,255,.45);
+    box-shadow:0 0 0 1px rgba(79,209,255,.12), 0 8px 24px -8px var(--accent-glow);
+    transform:translateY(-2px);
+  }
+  .social-btn:hover svg,.social-btn:focus-visible svg{color:var(--accent);}
+  .social-btn:hover .social-btn__label,.social-btn:focus-visible .social-btn__label{color:var(--text);}
+  .social-btn:active{transform:translateY(0);}
+
+  /* ---------- primary CTA ---------- */
+  .cta{
+    width:100%;
+    display:flex;align-items:center;gap:14px;
+    padding:18px 20px;
+    background:linear-gradient(180deg, var(--surface-strong), var(--surface));
+    border:1px solid var(--border-strong);
+    border-radius:var(--radius-lg);
+    position:relative;overflow:hidden;
+    transition:border-color .3s var(--ease), box-shadow .3s var(--ease), transform .2s var(--ease);
+  }
+  .cta::before{
+    content:'';position:absolute;inset:0;
+    background:linear-gradient(120deg, rgba(79,209,255,.08), rgba(124,139,255,.05) 40%, transparent 70%);
+    opacity:0;transition:opacity .3s var(--ease);
+  }
+  .cta:hover,.cta:focus-visible{
+    border-color:rgba(79,209,255,.5);
+    box-shadow:0 0 0 1px rgba(79,209,255,.12), 0 12px 32px -10px var(--accent-glow);
+    transform:translateY(-2px);
+  }
+  .cta:hover::before,.cta:focus-visible::before{opacity:1;}
+  .cta:active{transform:translateY(0);}
+  .cta__icon{
+    flex:none;width:42px;height:42px;border-radius:12px;
+    display:flex;align-items:center;justify-content:center;
+    background:rgba(79,209,255,.08);
+    border:1px solid rgba(79,209,255,.25);
+    color:var(--accent);
+  }
+  .cta__icon svg{width:20px;height:20px;}
+  .cta__text{text-align:left;position:relative;z-index:1;}
+  .cta__title{font-size:16px;font-weight:600;letter-spacing:.01em;}
+  .cta__subtitle{font-size:12.5px;color:var(--text-muted);margin-top:3px;}
+  .cta-caption{
+    font-family:var(--font-mono);font-size:10.5px;letter-spacing:.05em;
+    color:var(--text-faint);margin:10px 4px 0;
+  }
+
+  /* ---------- accordion ---------- */
+  .accordion{
+    border:1px solid var(--border);
+    border-radius:var(--radius-md);
+    background:var(--surface);
+    overflow:hidden;
+  }
+  .accordion-toggle{
+    width:100%;display:flex;align-items:center;justify-content:space-between;
+    padding:18px 18px;background:transparent;border:none;color:var(--text);
+    font-family:var(--font-display);font-size:15px;font-weight:600;
+  }
+  .accordion-toggle .chevron{
+    width:16px;height:16px;color:var(--text-muted);
+    transition:transform .4s var(--ease);
+    flex:none;
+  }
+  .accordion-toggle[aria-expanded="true"] .chevron{transform:rotate(180deg);color:var(--accent);}
+  .accordion-panel{
+    display:grid;grid-template-rows:0fr;
+    transition:grid-template-rows .5s var(--ease);
+  }
+  .accordion-panel.open{grid-template-rows:1fr;}
+  .accordion-panel__inner{overflow:hidden;min-height:0;}
+  .accordion-body{
+    padding:0 18px 20px;
+    color:var(--text-muted);font-size:13.5px;line-height:1.65;
+  }
+  .accordion-body .lead{
+    color:var(--text);font-weight:600;font-size:14.5px;line-height:1.5;
+    margin:0 0 14px;
+  }
+  .accordion-body p{margin:0 0 12px;}
+  .accordion-body p:last-child{margin-bottom:0;}
+
+  footer.bottom{
+    margin-top:38px;text-align:center;
+  }
+  footer.bottom span{
+    font-family:var(--font-mono);font-size:10.5px;letter-spacing:.08em;color:var(--text-faint);
+  }
+
+  /* ---------- modal ---------- */
+  .modal-overlay{
+    position:fixed;inset:0;z-index:60;
+    background:rgba(0,0,0,.7);
+    backdrop-filter:blur(6px);
+    display:flex;align-items:flex-end;justify-content:center;
+    opacity:0;pointer-events:none;
+    transition:opacity .3s var(--ease);
+  }
+  @media (min-width:600px){
+    .modal-overlay{align-items:center;}
+  }
+  .modal-overlay.visible{opacity:1;pointer-events:auto;}
+  .modal{
+    width:100%;max-width:420px;
+    background:var(--surface-strong);
+    border:1px solid var(--border-strong);
+    border-radius:24px 24px 0 0;
+    padding:26px 22px 30px;
+    position:relative;
+    transform:translateY(16px);
+    transition:transform .35s var(--ease);
+    box-shadow:0 -20px 60px -20px rgba(0,0,0,.6);
+  }
+  @media (min-width:600px){
+    .modal{border-radius:var(--radius-lg);}
+  }
+  .modal-overlay.visible .modal{transform:translateY(0);}
+  .modal-close{
+    position:absolute;top:16px;right:16px;
+    width:30px;height:30px;border-radius:50%;
+    background:var(--surface);border:1px solid var(--border);
+    color:var(--text-muted);font-size:16px;line-height:1;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .modal-close:hover{color:var(--text);border-color:var(--border-strong);}
+  .modal h3{margin:0 0 8px;font-size:17px;}
+  .modal p{margin:0 0 20px;color:var(--text-muted);font-size:13.5px;line-height:1.55;}
+  .modal-actions{display:flex;gap:10px;margin-bottom:16px;}
+  .btn-store{
+    flex:1;text-align:center;padding:13px 10px;
+    border-radius:var(--radius-sm);
+    border:1px solid var(--border-strong);
+    background:var(--surface);
+    font-size:13px;font-weight:600;
+    transition:border-color .25s var(--ease), background .25s var(--ease);
+  }
+  .btn-store:hover{border-color:var(--accent);background:var(--surface-hover);color:var(--accent);}
+  .modal-secondary{
+    display:inline-block;font-family:var(--font-mono);font-size:11.5px;
+    color:var(--text-muted);letter-spacing:.04em;
+  }
+  .modal-secondary:hover{color:var(--accent);}
+
+  @media (prefers-reduced-motion:reduce){
+    *{animation-duration:.01ms !important;animation-iteration-count:1 !important;transition-duration:.01ms !important;}
+  }
+</style>
+</head>
+<body>
+
+<div class="ambient" aria-hidden="true"></div>
+
+<!-- ================= SPLASH ================= -->
+<div id="splash">
+  <div class="wordmark splash-word" aria-label="SecureLineVPN">
+    <span class="wordmark__text">SecureLine</span><span class="wordmark__badge">VPN</span>
+  </div>
+  <div class="progress-track">
+    <div class="progress-fill" id="progressFill"></div>
+  </div>
+</div>
+
+<!-- ================= APP ================= -->
+<div id="app">
+
+  <header class="top">
+    <div class="wordmark" aria-label="SecureLineVPN">
+      <span class="wordmark__text">SecureLine</span><span class="wordmark__badge">VPN</span>
+    </div>
+    <div class="status-dot-wrap">
+      <span class="status-dot" aria-hidden="true"></span>
+      <span class="status-label">защищено</span>
+    </div>
+  </header>
+
+  <div class="hairline" aria-hidden="true"></div>
+
+  <section aria-labelledby="social-heading">
+    <p class="eyebrow" id="social-heading">Наши соц сети</p>
+    <div class="social-row">
+      <a class="social-btn" href="https://t.me/securelinevpnbk" target="_blank" rel="noopener noreferrer" title="Telegram">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M21 3 3 10.5l7 2.5 2 7L21 3Z"/>
+          <path d="M10.5 13 21 3"/>
+        </svg>
+        <span class="social-btn__label">TG</span>
+      </a>
+      <a class="social-btn" href="https://max.ru/join/9TC5Qe5y9cyRrrmx80Gw6_mDV88Rcn-v4HiGyI8PCis" target="_blank" rel="noopener noreferrer" title="MAX">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M4 5.5h16v10H9.5L5 19v-3.5H4v-10Z"/>
+        </svg>
+        <span class="social-btn__label">MAX</span>
+      </a>
+      <a class="social-btn" href="https://x.com/securelinevpn?s=11" target="_blank" rel="noopener noreferrer" title="X">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true">
+          <path d="M5 5 19 19M19 5 5 19"/>
+        </svg>
+        <span class="social-btn__label">X</span>
+      </a>
+    </div>
+  </section>
+
+  <section aria-labelledby="vpn-heading">
+    <p class="eyebrow" id="vpn-heading">Собственный VPN</p>
+    <button class="cta" id="selfHostedBtn" type="button">
+      <span class="cta__icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3Z"/>
+          <path d="M9 12l2 2 4-4"/>
+        </svg>
+      </span>
+      <span class="cta__text">
+        <span class="cta__title">Self-Hosted VPN</span>
+        <span class="cta__subtitle">Разверните личный VPN на своём сервере</span>
+      </span>
+    </button>
+    <p class="cta-caption">Откроется в Google Play или App Store</p>
+  </section>
+
+  <section aria-labelledby="about-heading">
+    <p class="eyebrow" id="about-heading">О приложении</p>
+    <div class="accordion">
+      <button class="accordion-toggle" id="aboutToggle" type="button" aria-expanded="false" aria-controls="aboutPanel">
+        <span>Информация о нас</span>
+        <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M6 9l6 6 6-6"/>
+        </svg>
+      </button>
+      <div class="accordion-panel" id="aboutPanel">
+        <div class="accordion-panel__inner">
+          <div class="accordion-body">
+            <p class="lead">SecureLineVPN — современный стандарт безопасности, скорости и свободы в интернете.</p>
+            <p>В современном цифровом мире конфиденциальность и защита личных данных становятся важнее, чем когда-либо. Именно поэтому миллионы пользователей выбирают SecureLineVPN — надежное решение, созданное для обеспечения максимальной безопасности, высокой скорости соединения и полной свободы доступа к интернет-ресурсам.</p>
+            <p>SecureLineVPN использует современные технологии шифрования, которые помогают надежно защищать пользовательские данные от перехвата, кражи и несанкционированного доступа. Вся информация передается через защищенные серверы, обеспечивая высокий уровень конфиденциальности и безопасности во время работы в сети. Благодаря этому пользователи могут спокойно пользоваться интернетом дома, в путешествиях, в общественных сетях Wi-Fi и в любом другом месте, не беспокоясь о безопасности своих данных.</p>
+            <p>Одним из главных преимуществ SecureLineVPN является широкая сеть современных серверов, расположенных в различных странах мира. Это обеспечивает стабильное соединение, высокую скорость передачи данных и минимальную задержку. Интеллектуальная система автоматически подбирает наиболее подходящий сервер, чтобы обеспечить максимально комфортную работу, просмотр видео, онлайн-игры и загрузку файлов.</p>
+            <p>SecureLineVPN также помогает повысить уровень конфиденциальности в интернете, скрывая IP-адрес пользователя и значительно затрудняя отслеживание его онлайн-активности. Это особенно важно для тех, кто ценит свою цифровую безопасность и хочет сохранить личную информацию под надежной защитой.</p>
+            <p>Компания постоянно совершенствует свою инфраструктуру, внедряя новейшие технологии защиты, оптимизации соединений и повышения производительности серверов. Благодаря регулярным обновлениям сервис остается быстрым, стабильным и надежным даже при высокой нагрузке.</p>
+            <p>Простой и удобный интерфейс делает SecureLineVPN отличным выбором как для начинающих пользователей, так и для опытных специалистов. Подключение занимает всего несколько секунд, а настройка практически не требует специальных знаний. Все функции разработаны таким образом, чтобы обеспечить максимальный комфорт и простоту использования.</p>
+            <p>SecureLineVPN сочетает в себе надежность, скорость, современные технологии защиты и высокий уровень качества обслуживания. Это сервис, которому доверяют пользователи, стремящиеся обеспечить безопасное и комфортное использование интернета каждый день.</p>
+            <p>Если вы цените конфиденциальность, надежную защиту соединения, стабильную работу серверов и современные технологии информационной безопасности, SecureLineVPN станет достойным выбором. Это решение, созданное для тех, кто хочет пользоваться интернетом свободно, безопасно и с максимальным комфортом.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer class="bottom">
+    <span>SECURELINEVPN &middot; ENCRYPTED CONNECTION</span>
+  </footer>
+
+</div>
+
+<!-- ================= MODAL (desktop fallback) ================= -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <button class="modal-close" id="modalClose" type="button" aria-label="Закрыть">&times;</button>
+    <h3 id="modalTitle">Выберите платформу</h3>
+    <p>Self-Hosted VPN устанавливается через приложение Amnezia. Выберите магазин приложений для вашего устройства.</p>
+    <div class="modal-actions">
+      <a class="btn-store" href="https://play.google.com/store/apps/details?id=org.amnezia.vpn&hl=en" target="_blank" rel="noopener noreferrer">Google Play</a>
+      <a class="btn-store" href="https://apps.apple.com/us/app/amneziavpn/id1600529900" target="_blank" rel="noopener noreferrer">App Store</a>
+    </div>
+    <a class="modal-secondary" href="https://amnezia.org/downloads" target="_blank" rel="noopener noreferrer">Версии для компьютера →</a>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  var GOOGLE_PLAY_URL = "https://play.google.com/store/apps/details?id=org.amnezia.vpn&hl=en";
+  var APP_STORE_URL = "https://apps.apple.com/us/app/amneziavpn/id1600529900";
+
+  var splash = document.getElementById('splash');
+  var app = document.getElementById('app');
+  var fill = document.getElementById('progressFill');
+  var prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var revealed = false;
+
+  function revealApp(){
+    if(revealed) return;
+    revealed = true;
+    splash.classList.add('fade-out');
+    setTimeout(function(){
+      splash.style.display = 'none';
+      app.classList.add('visible');
+    }, prefersReduced ? 50 : 480);
+  }
+
+  if(prefersReduced){
+    fill.style.transition = 'none';
+    fill.classList.add('run');
+    setTimeout(revealApp, 400);
+  } else {
+    requestAnimationFrame(function(){
+      requestAnimationFrame(function(){
+        fill.classList.add('run');
+      });
+    });
+    fill.addEventListener('transitionend', function(e){
+      if(e.propertyName === 'width') revealApp();
+    });
+    // safety fallback in case transitionend never fires
+    setTimeout(revealApp, 3200);
+  }
+
+  /* ---------- device detection for Self-Hosted VPN ---------- */
+  function detectDevice(){
+    var ua = navigator.userAgent || navigator.vendor || '';
+    var isIOS = /iPad|iPhone|iPod/.test(ua) ||
+      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    var isAndroid = /android/i.test(ua);
+    if(isAndroid) return 'android';
+    if(isIOS) return 'ios';
+    return 'other';
+  }
+
+  var modalOverlay = document.getElementById('modalOverlay');
+  var modalClose = document.getElementById('modalClose');
+
+  function openModal(){
+    modalOverlay.classList.add('visible');
+    modalClose.focus();
+  }
+  function closeModal(){
+    modalOverlay.classList.remove('visible');
+  }
+
+  document.getElementById('selfHostedBtn').addEventListener('click', function(){
+    var device = detectDevice();
+    if(device === 'android'){
+      window.location.href = GOOGLE_PLAY_URL;
+    } else if(device === 'ios'){
+      window.location.href = APP_STORE_URL;
+    } else {
+      openModal();
+    }
+  });
+
+  modalClose.addEventListener('click', closeModal);
+  modalOverlay.addEventListener('click', function(e){
+    if(e.target === modalOverlay) closeModal();
+  });
+  document.addEventListener('keydown', function(e){
+    if(e.key === 'Escape') closeModal();
+  });
+
+  /* ---------- accordion ---------- */
+  var aboutToggle = document.getElementById('aboutToggle');
+  var aboutPanel = document.getElementById('aboutPanel');
+
+  aboutToggle.addEventListener('click', function(){
+    var isOpen = aboutPanel.classList.toggle('open');
+    aboutToggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+  });
+
+})();
+</script>
+
+</body>
+</html>
